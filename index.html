@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GST Reconcile - 2B vs Books</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;font-family:Inter,system-ui,Arial,sans-serif}
+body{margin:0;background:#f1f5f9;color:#0f172a}
+a{color:#2563eb}
+.top{background:#0f2a5a;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+.top b{font-size:19px}
+.top span{font-size:12px;opacity:.85}
+.card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 4px 18px rgba(0,0,0,.06);margin:14px auto;max-width:1080px}
+input,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;margin:6px 0;font-size:14px}
+button{border:0;border-radius:9px;padding:11px 16px;cursor:pointer;font-weight:700}
+.btn-blue{background:#2563eb;color:#fff}
+.btn-orange{background:#f59e0b;color:#111}
+.btn-dark{background:#0f2a5a;color:#fff}
+.btn-ghost{background:#e2e8f0;color:#111}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tabs button{flex:1}
+.tabs button.active{background:#0f2a5a;color:#fff}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:700px){.grid3{grid-template-columns:1fr}.top{flex-direction:column;align-items:flex-start;gap:8px}}
+.plan{border:2px solid #e2e8f0;border-radius:12px;padding:12px;text-align:center;cursor:pointer}
+.plan.sel{border-color:#2563eb;background:#eff6ff}
+.pill{padding:4px 9px;border-radius:20px;font-size:12px;font-weight:700;display:inline-block}
+.green{background:#dcfce7}.orange{background:#fef3c7}.red{background:#fee2e2}.bluebg{background:#dbeafe}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}
+th{background:#0f2a5a;color:#fff;position:sticky;top:0}
+.wrap{overflow:auto;max-height:420px;border:1px solid #e2e8f0;border-radius:10px}
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:700px){.kpi{grid-template-columns:1fr 1fr}}
+.kpi div{background:#f8fafc;border-radius:12px;padding:12px}
+.kpi b{font-size:22px;display:block}
+.small{font-size:12px;color:#64748b}
+.hidden{display:none}
+.flex{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.badge{background:#fff7ed;border:1px solid #fed7aa;padding:8px 10px;border-radius:10px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="top"><div><b>GST Reconcile - 2B vs Books</b><br><span>IMS / GSTR-2B vs Purchase Register • Smart Matching • 100% Private</span></div><div id="userBar" class="hidden"><span id="userInfo"></span> <button class="btn-orange" onclick="logout()">Logout</button></div></div>
+
+<!-- AUTH -->
+<div id="authBox" class="card">
+<div class="tabs"><button id="tabLogin" class="active" onclick="showTab('login')">Login</button><button id="tabSignup" onclick="showTab('signup')">Sign Up</button></div>
+<div id="loginForm">
+<input id="loginEmail" placeholder="Email - demo@demo.com">
+<input id="loginPass" type="password" placeholder="Password - demo123">
+<button class="btn-blue" style="width:100%" onclick="doLogin()">Login</button>
+<button class="btn-ghost" style="width:100%;margin-top:8px" onclick="fillDemo()">Demo User se Login karo</button>
+<div class="flex" style="margin-top:10px"><input id="forgotEmail" placeholder="Forgot - Email likho" style="flex:1"><input id="forgotPass" type="password" placeholder="Naya Password" style="flex:1"><button class="btn-dark" onclick="forgot()">Reset</button></div>
+<p class="small">Demo: demo@demo.com / demo123 &nbsp; | &nbsp; Admin: admin@gst.com / admin123</p>
+</div>
+<div id="signupForm" class="hidden">
+<input id="suName" placeholder="Full Name">
+<input id="suEmail" placeholder="Email">
+<input id="suPhone" placeholder="Phone">
+<input id="suPass" type="password" placeholder="Password (min 6)">
+<input id="suPass2" type="password" placeholder="Confirm Password">
+<p><b>Plan chuno:</b></p>
+<div class="grid3">
+<div class="plan sel" id="planTrial" onclick="pickPlan('Trial')"><b>7 Days Free Trial</b><br>Free<br><span class="small">Full tool, 7 din</span></div>
+<div class="plan" id="planMonthly" onclick="pickPlan('Monthly')"><b>Monthly</b><br>Rs 499 / month<br><span class="small">Full tool</span></div>
+<div class="plan" id="planYearly" onclick="pickPlan('Yearly')"><b>Yearly</b><br>Rs 4999 / year<br><span class="small">2 mahine free jaisa</span></div>
+</div>
+<button class="btn-blue" style="width:100%;margin-top:12px" onclick="doSignup()">Create Account</button>
+</div>
+<p id="authMsg" style="font-weight:700"></p>
+<div class="grid3">
+<div class="card" style="margin:0"><b>Smart Matching</b><p class="small">GSTIN + Invoice No, Prefix/Suffix ignore, PAN level, GSTIN + Amount, Fuzzy match</p></div>
+<div class="card" style="margin:0"><b>Clear Buckets</b><p class="small">Matched, Mismatch, In 2B not in Books, In Books not in 2B, Supplier-wise view</p></div>
+<div class="card" style="margin:0"><b>IMS Suggestion</b><p class="small">Accept / Pending / Reject advisory + ITC Summary + CSV Export</p></div>
+</div>
+</div>
+
+<!-- APP -->
+<div id="appBox" class="hidden">
+<div class="card">
+<div class="flex"><button class="btn-dark" onclick="showPage('tool')">2B Reconciliation</button><button class="btn-dark" onclick="showPage('gsttools')">GST Tools</button><button class="btn-dark" onclick="showPage('news')">Live GST News</button><button class="btn-dark" onclick="showPage('ecom')">E-commerce GST</button><button class="btn-dark" onclick="showPage('quick')">Quick Commerce</button><button id="adminBtn" class="btn-orange hidden" onclick="showPage('admin')">Admin Dashboard</button><span class="badge">Live News + All GST Tools + E-commerce</span></div>
+</div>
+
+<div id="pageTool">
+<div class="card">
+<h2 style="margin:0">Step 1 - Files daalo</h2>
+<div class="grid3">
+<div><b>GSTR-2B / IMS File</b><input type="file" id="file2b" accept=".csv,.xlsx,.xls,.json"><p class="small" id="info2b">No file yet</p></div>
+<div><b>Purchase Register (Books) File</b><input type="file" id="fileBooks" accept=".csv,.xlsx,.xls,.json"><p class="small" id="infoBooks">No file yet</p></div>
+<div><b>Demo Data</b><br><button class="btn-orange" onclick="loadDemo()">Load Demo Data</button> <button class="btn-ghost" onclick="clearData()">Clear</button><p class="small">Pehle demo se test karo, phir apni file daalo.</p></div>
+</div>
+<h3>Step 2 - Column Mapping (auto detect ho jayega)</h3>
+<div class="grid3">
+<div><b>2B File Mapping</b><div id="map2b"></div></div>
+<div><b>Books File Mapping</b><div id="mapBooks"></div></div>
+<div><b>Run</b><br><button class="btn-blue" style="width:100%;font-size:16px;padding:14px" onclick="runRecon()">Run Reconciliation</button><p class="small">Matching: GSTIN + Invoice, PAN level, Amount, Fuzzy. Tolerance Rs 1.</p></div>
+</div>
+</div>
+
+<div id="resultBox" class="hidden">
+<div class="card"><h2 style="margin:0">Result</h2><div class="kpi" style="margin-top:12px"><div><span class="small">Matched</span><b id="cMatched">0</b></div><div><span class="small">Mismatch</span><b id="cMismatch">0</b></div><div><span class="small">In 2B not in Books</span><b id="cOnly2b">0</b></div><div><span class="small">In Books not in 2B</span><b id="cOnlyBooks">0</b></div></div>
+<h3>ITC Summary</h3><div class="wrap"><table><thead><tr><th></th><th>Taxable</th><th>IGST</th><th>CGST</th><th>SGST</th><th>Total Tax</th></tr></thead><tbody id="itcBody"></tbody></table></div></div>
+<div class="card">
+<div class="flex"><input id="searchBox" placeholder="Search supplier / invoice / GSTIN" style="flex:1" oninput="renderTable()"><select id="bucketSel" onchange="renderTable()" style="width:200px"><option value="All">All Buckets</option><option value="Matched">Matched</option><option value="Mismatch">Mismatch</option><option value="In 2B not in Books">In 2B not in Books</option><option value="In Books not in 2B">In Books not in 2B</option></select><select id="supplierSel" onchange="renderTable()" style="width:200px"><option value="All">All Suppliers</option></select></div>
+<div class="flex" style="margin-top:10px"><button class="btn-blue" onclick="exportCSV('All')">Export Full Report CSV</button><button class="btn-ghost" onclick="exportCSV('Matched')">Export Matched</button><button class="btn-ghost" onclick="exportCSV('Mismatch')">Export Mismatch</button><button class="btn-ghost" onclick="exportCSV('In 2B not in Books')">Export 2B Only</button><button class="btn-ghost" onclick="exportCSV('In Books not in 2B')">Export Books Only</button></div>
+<div class="wrap" style="margin-top:12px"><table><thead><tr><th>Supplier</th><th>GSTIN</th><th>Inv 2B</th><th>Inv Books</th><th>Tax 2B</th><th>Tax Books</th><th>Diff</th><th>Bucket</th><th>Match Type</th><th>IMS Suggestion</th></tr></thead><tbody id="resultBody"></tbody></table></div>
+<h3>Supplier-wise View</h3><div class="wrap"><table><thead><tr><th>Supplier</th><th>GSTIN</th><th>Count</th><th>Tax 2B</th><th>Tax Books</th><th>Matched</th><th>Mismatch</th></tr></thead><tbody id="supplierBody"></tbody></table></div>
+</div>
+</div>
+</div>
+
+<div id="pageAdmin" class="hidden">
+<div class="card"><h2>Admin Dashboard</h2><div class="kpi"><div><span class="small">Total Users</span><b id="aTotal">0</b></div><div><span class="small">Active</span><b id="aActive">0</b></div><div><span class="small">Blocked</span><b id="aBlocked">0</b></div><div><span class="small">Trial</span><b id="aTrial">0</b></div></div>
+<h3>Add User Manually</h3><div class="flex"><input id="admName" placeholder="Name"><input id="admEmail" placeholder="Email"><input id="admPhone" placeholder="Phone"><input id="admPass" placeholder="Password"><select id="admPlan"><option>Trial</option><option>Monthly</option><option>Yearly</option></select><button class="btn-blue" onclick="adminAdd()">Add User</button></div>
+<h3>All Users</h3><div class="wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Plan</th><th>Expiry</th><th>Status</th><th>Action</th></tr></thead><tbody id="adminBody"></tbody></table></div>
+<h3>License Keys - Sell karne ke liye</h3><div class="flex"><select id="keyPlan"><option>Monthly</option><option>Yearly</option><option>Trial</option></select><button class="btn-orange" onclick="genKey()">Generate Key</button></div><div id="keyList" style="margin-top:10px"></div><p class="small">Key customer ko de do, customer signup ke baad key se plan activate kar sakta hai. Is demo me key list isi browser me save hoti hai.</p>
+</div>
+</div>
+
+<div id="pageGstTools" class="hidden">
+<div class="card"><h2>GST Tools - Sab Ek Jagah</h2><p class="small">Calculator, GSTR-3B, HSN Rate Finder, Due Dates</p>
+<div class="grid3">
+<div><h3>GST Calculator</h3><label class="small">Amount</label><input id="gstAmt" type="number" value="10000"><label class="small">GST Rate</label><select id="gstRate"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18" selected>18%</option><option value="28">28%</option></select><label class="small">Type</label><select id="gstType"><option value="exclusive">Exclusive (Amount + GST)</option><option value="inclusive">Inclusive (Amount me GST included)</option></select><label class="small">Supply</label><select id="gstSupply"><option value="intra">Intra-State (CGST+SGST)</option><option value="inter">Inter-State (IGST)</option></select><button class="btn-blue" style="width:100%;margin-top:8px" onclick="calcGST()">Calculate</button><div id="gstCalcOut" style="margin-top:10px;background:#f8fafc;padding:10px;border-radius:10px"></div></div>
+<div><h3>GSTR-3B Net Payable</h3><label class="small">Outward Taxable</label><input id="bOutTax" type="number" value="500000"><label class="small">Outward GST (IGST+CGST+SGST)</label><input id="bOutTaxAmt" type="number" value="90000"><label class="small">ITC Available - IGST</label><input id="bItcIgst" type="number" value="40000"><label class="small">ITC Available - CGST+SGST</label><input id="bItcCgst" type="number" value="30000"><button class="btn-blue" style="width:100%;margin-top:8px" onclick="calc3B()">Calculate 3B</button><div id="b3bOut" style="margin-top:10px;background:#f8fafc;padding:10px;border-radius:10px"></div></div>
+<div><h3>HSN / SAC Rate Finder</h3><input id="hsnSearch" placeholder="Search - mobile, wheat, car, service..." oninput="filterHSN()"><div class="wrap" style="max-height:320px"><table><thead><tr><th>Item</th><th>HSN</th><th>Rate</th></tr></thead><tbody id="hsnBody"></tbody></table></div></div>
+</div>
+<div class="card" style="margin:12px 0 0 0"><h3>GST Due Dates - Nov / Dec 2026</h3><div class="wrap"><table><thead><tr><th>Return</th><th>Period</th><th>Due Date</th><th>Kaun Bharega</th></tr></thead><tbody><tr><td>GSTR-1</td><td>Oct 2026 Monthly</td><td>11 Nov 2026</td><td>Regular Dealer</td></tr><tr><td>GSTR-3B</td><td>Oct 2026</td><td>20 Nov 2026</td><td>Regular Dealer</td></tr><tr><td>GSTR-1 QRMP</td><td>Oct 2026</td><td>13 Nov 2026</td><td>QRMP - IFF</td></tr><tr><td>GSTR-3B QRMP</td><td>Oct 2026</td><td>22-24 Nov 2026</td><td>QRMP State-wise</td></tr><tr><td>CMP-08</td><td>Jul-Sep 2026</td><td>18 Oct 2026</td><td>Composition</td></tr><tr><td>GSTR-9 / 9C</td><td>FY 2025-26</td><td>31 Dec 2026</td><td>Annual Return</td></tr><tr><td>GSTR-1</td><td>Nov 2026</td><td>11 Dec 2026</td><td>Regular Dealer</td></tr><tr><td>GSTR-3B</td><td>Nov 2026</td><td>20 Dec 2026</td><td>Regular Dealer</td></tr></tbody></table></div><p class="small">Note: Due date official portal se confirm kar lo, holiday pe aage badh sakta hai.</p></div>
+</div>
+
+</div>
+<div id="pageNews" class="hidden">
+<div class="card"><div class="flex"><h2 style="margin:0">Live GST News <span class="pill red">● LIVE</span></h2><button class="btn-blue" onclick="fetchNews()">Refresh News</button><span class="small" id="newsTime"></span></div><p class="small">News Google News RSS + GST Council / CBIC updates se live fetch hota hai. Internet na ho to saved latest news dikhega.</p><div id="newsList"></div>
+<div class="card" style="margin-top:12px"><h3>GST Council - Latest Big Updates (2025-26)</h3><ul><li><b>2-Rate Structure:</b> Ab mainly 5% aur 18% slab - 12% aur 28% wale zyada items merge ho gaye.</li><li><b>Essential items 5% / 0%:</b> Daily use, food, health, education se judi cheezein sasti.</li><li><b>E-commerce TCS:</b> Online sale pe 1% TCS (0.5% CGST + 0.5% SGST) - seller ko ITC me milta hai.</li><li><b>E-Invoice:</b> Turnover 5 Cr+ walo ke liye mandatory, B2B pe IRN + QR code.</li><li><b>IMS in GSTR-2B:</b> Ab ITC pehle IMS me Accept / Reject / Pending karna hota hai, phir 2B me aata hai.</li></ul></div>
+</div>
+</div>
+
+</div>
+<div id="pageEcom" class="hidden">
+<div class="card"><h2>E-commerce GST - Seller Full Calculator</h2><p class="small">Amazon / Flipkart / Meesho / Shopify ke liye - Commission, GST on Commission, TCS, Net Receivable</p>
+<div class="grid3">
+<div><h3>Seller Calculator</h3><label class="small">Selling Price (Customer ne diya)</label><input id="ecPrice" type="number" value="999"><label class="small">Platform</label><select id="ecPlatform" onchange="setComm()"><option value="Amazon">Amazon</option><option value="Flipkart">Flipkart</option><option value="Meesho">Meesho</option><option value="Shopify">Shopify / Own Website</option></select><label class="small">Commission %</label><input id="ecComm" type="number" value="12"><label class="small">Shipping / Picking (Rs)</label><input id="ecShip" type="number" value="40"><label class="small">Product Cost (Rs)</label><input id="ecCost" type="number" value="500"><button class="btn-blue" style="width:100%;margin-top:8px" onclick="calcEcom()">Calculate Net Profit</button><div id="ecOut" style="margin-top:10px;background:#fff7ed;padding:10px;border-radius:10px"></div></div>
+<div><h3>Platform Comparison</h3><div class="wrap"><table><thead><tr><th>Platform</th><th>Commission</th><th>TCS</th><th>Payment</th></tr></thead><tbody><tr><td>Amazon</td><td>5% - 15%</td><td>1%</td><td>7-14 din</td></tr><tr><td>Flipkart</td><td>5% - 18%</td><td>1%</td><td>7-15 din</td></tr><tr><td>Meesho</td><td>0% Commission*</td><td>1%</td><td>7 din</td></tr><tr><td>Shopify / Own</td><td>2% - 2.9% + Plan</td><td>No TCS*</td><td>Direct</td></tr></tbody></table></div><p class="small">*Meesho pe ads / logistics charge alag se lagta hai. Own website pe TCS nahi lagta, par GST registration mandatory hai.</p></div>
+<div><h3>E-commerce Seller Checklist</h3><ul><li>GST Registration - Interstate sale ke liye mandatory, limit nahi hai</li><li>HSN sahi lagao, warna return / penalty</li><li>E-invoice agar turnover 5 Cr+</li><li>TCS 1% ka ITC GSTR-2B me check karo</li><li>Returns / Cancel ka GST reversal GSTR-3B me</li><li>Stock, Invoice, E-way bill ka record rakho</li></ul><div class="card" style="background:#eff6ff"><b>Future Trend 2026:</b><br><span class="small">Quick Commerce (Blinkit, Zepto), D2C brands, Live Selling, GST me AI reconciliation aur auto-filing badh raha hai. Jo seller abhi se sahi GST + fast delivery rakhega, wahi aage jitega.</span></div></div>
+</div>
+</div>
+
+<div id="pageQuick" class="hidden">
+<div class="card"><h2>Quick Commerce Calculator - Blinkit vs Zepto vs Instamart</h2><p class="small">10-min delivery wala game - Commission, Delivery, GST aur Profit ek saath dekho.</p>
+<div class="grid3">
+<div><h3>Apna Product Daalo</h3><label class="small">Selling Price (Rs)</label><input id="qcPrice" type="number" value="299"><label class="small">Product Cost (Rs)</label><input id="qcCost" type="number" value="180"><label class="small">Platform Chuno</label><select id="qcPlatform" onchange="setQuick()"><option value="Blinkit">Blinkit</option><option value="Zepto">Zepto</option><option value="Instamart">Instamart (Swiggy)</option><option value="D2C">D2C - Apni Website</option><option value="Marketplace">Marketplace - Amazon / Flipkart</option></select><label class="small">Commission %</label><input id="qcComm" type="number" value="18"><label class="small">Delivery / Handling (Rs)</label><input id="qcShip" type="number" value="25"><button class="btn-blue" style="width:100%;margin-top:8px" onclick="calcQuick()">Calculate Profit</button><div id="qcOut" style="margin-top:10px;background:#fff7ed;padding:10px;border-radius:10px"></div></div>
+<div><h3>Compare - Sab Platform Ek Saath</h3><button class="btn-orange" style="width:100%" onclick="compareQuick()">Sabka Compare Karo</button><div id="qcCompare" style="margin-top:10px"></div></div>
+<div><h3>Quick Commerce vs D2C vs Live Selling</h3><div class="wrap"><table><thead><tr><th>Model</th><th>Delivery</th><th>Commission</th><th>GST Kaam</th></tr></thead><tbody><tr><td>Blinkit</td><td>8-15 min</td><td>15-20%</td><td>Dark store, same state CGST+SGST</td></tr><tr><td>Zepto</td><td>8-12 min</td><td>16-22%</td><td>Fast ITC, daily settlement</td></tr><tr><td>Instamart</td><td>12-20 min</td><td>14-18%</td><td>Swiggy network, TCS 1%</td></tr><tr><td>D2C Website</td><td>1-3 din</td><td>2-3% + Ads</td><td>Khud GST invoice, zyada margin</td></tr><tr><td>Live Selling</td><td>Same day / 1 din</td><td>0-5%</td><td>Live invoice banao, return kam</td></tr></tbody></table></div><div class="card" style="background:#eff6ff;margin-top:10px"><b>Winning Formula 2026:</b><br><span class="small">GST saaf + Stock dark store ke paas + Live pe dikhao + Quick delivery.</span></div></div>
+</div>
+<div class="card" style="margin-top:12px"><h3>Seller Action Plan</h3><ol><li><b>Week 1:</b> GST, HSN, Invoice sahi karo. Is tool se 2B milao.</li><li><b>Week 2:</b> 1 Quick Commerce platform pe listing try karo.</li><li><b>Week 3:</b> Hafta me 1 Live Selling karo.</li><li><b>Week 4:</b> D2C website / WhatsApp order shuru karo.</li></ol></div>
+</div>
+</div>
+</div>
+
+<script>
+let users = JSON.parse(localStorage.getItem('gst_users_v2')||'[]');
+let keys = JSON.parse(localStorage.getItem('gst_keys_v2')||'[]');
+let session = localStorage.getItem('gst_session_v2');
+let selectedPlan='Trial';
+let data2b=[], dataBooks=[], allRows=[], suppliersSet=new Set();
+let map2b={}, mapBooks={};
+const FIELDS=[['supplier','Supplier Name'],['gstin','GSTIN'],['invoice','Invoice No'],['date','Invoice Date'],['taxable','Taxable Value'],['igst','IGST'],['cgst','CGST'],['sgst','SGST'],['total','Total Amount']];
+function saveUsers(){localStorage.setItem('gst_users_v2',JSON.stringify(users));}
+function saveKeys(){localStorage.setItem('gst_keys_v2',JSON.stringify(keys));}
+if(!users.find(u=>u.email==='admin@gst.com')){users.push({name:'Admin',email:'admin@gst.com',phone:'9999999999',password:'admin123',plan:'Yearly',signup:new Date().toISOString().slice(0,10),expiry:'2030-01-01',status:'Active'});saveUsers();}
+if(!users.find(u=>u.email==='demo@demo.com')){users.push({name:'Demo User',email:'demo@demo.com',phone:'8888888888',password:'demo123',plan:'Monthly',signup:new Date().toISOString().slice(0,10),expiry:'2030-01-01',status:'Active'});saveUsers();}
+function showTab(t){document.getElementById('loginForm').classList.toggle('hidden',t!=='login');document.getElementById('signupForm').classList.toggle('hidden',t!=='signup');document.getElementById('tabLogin').classList.toggle('active',t==='login');document.getElementById('tabSignup').classList.toggle('active',t==='signup');}
+function pickPlan(p){selectedPlan=p;['Trial','Monthly','Yearly'].forEach(x=>{document.getElementById('plan'+x).classList.toggle('sel',x===p);});}
+function expiryFor(plan){let d=new Date();let add=plan==='Trial'?7:plan==='Monthly'?30:365;d.setDate(d.getDate()+add);return d.toISOString().slice(0,10);}
+function doSignup(){let name=document.getElementById('suName').value.trim(),email=document.getElementById('suEmail').value.trim().toLowerCase(),phone=document.getElementById('suPhone').value.trim(),p=document.getElementById('suPass').value,p2=document.getElementById('suPass2').value;let msg=document.getElementById('authMsg');if(!name||!email||!p){msg.innerText='Name, Email, Password bharo';return;}if(p.length<6){msg.innerText='Password min 6 chars';return;}if(p!==p2){msg.innerText='Password match nahi ho raha';return;}if(users.find(u=>u.email===email)){msg.innerText='Ye email pehle se hai, Login karo';return;}users.push({name,email,phone,password:p,plan:selectedPlan,signup:new Date().toISOString().slice(0,10),expiry:expiryFor(selectedPlan),status:'Active'});saveUsers();msg.innerText='Account ban gaya! Ab Login karo. Plan: '+selectedPlan;showTab('login');}
+function doLogin(){let email=document.getElementById('loginEmail').value.trim().toLowerCase(),p=document.getElementById('loginPass').value;let u=users.find(x=>x.email===email && x.password===p);let msg=document.getElementById('authMsg');if(!u){msg.innerText='Email ya Password galat hai';return;}if(u.status==='Blocked'){msg.innerText='Account Blocked hai, Admin se contact karo';return;}if(new Date(u.expiry)<new Date() && u.email!=='admin@gst.com'){msg.innerText='Plan expire ho gaya hai, Admin se renew karwao';return;}localStorage.setItem('gst_session_v2',email);session=email;afterLogin();}
+function fillDemo(){document.getElementById('loginEmail').value='demo@demo.com';document.getElementById('loginPass').value='demo123';doLogin();}
+function forgot(){let e=document.getElementById('forgotEmail').value.trim().toLowerCase(),np=document.getElementById('forgotPass').value;let u=users.find(x=>x.email===e);if(!u){document.getElementById('authMsg').innerText='Email nahi mila';return;}if(np.length<6){document.getElementById('authMsg').innerText='Naya password min 6 chars';return;}u.password=np;saveUsers();document.getElementById('authMsg').innerText='Password reset ho gaya, ab login karo';}
+function logout(){localStorage.removeItem('gst_session_v2');location.reload();}
+function afterLogin(){let u=users.find(x=>x.email===session);if(!u) return;document.getElementById('authBox').classList.add('hidden');document.getElementById('appBox').classList.remove('hidden');document.getElementById('userBar').classList.remove('hidden');document.getElementById('userInfo').innerText='Hi, '+u.name+' | '+u.plan+' | Exp: '+u.expiry;if(u.email==='admin@gst.com') document.getElementById('adminBtn').classList.remove('hidden');showPage('tool');renderAdmin();}
+function showPage(p){document.getElementById('pageTool').classList.toggle('hidden',p!=='tool');document.getElementById('pageAdmin').classList.toggle('hidden',p!=='admin');let g=document.getElementById('pageGstTools'); if(g) g.classList.toggle('hidden',p!=='gsttools');let n=document.getElementById('pageNews'); if(n) n.classList.toggle('hidden',p!=='news');let e=document.getElementById('pageEcom'); if(e) e.classList.toggle('hidden',p!=='ecom');let q=document.getElementById('pageQuick'); if(q) q.classList.toggle('hidden',p!=='quick'); if(p==='news') fetchNews(); window.scrollTo(0,0);}
+function renderAdmin(){let tb=document.getElementById('adminBody');tb.innerHTML='';users.forEach((u,i)=>{let tr=document.createElement('tr');tr.innerHTML='<td>'+u.name+'</td><td>'+u.email+'</td><td>'+u.phone+'</td><td><select onchange="changePlan('+i+',this.value)"><option '+(u.plan==='Trial'?'selected':'')+'>Trial</option><option '+(u.plan==='Monthly'?'selected':'')+'>Monthly</option><option '+(u.plan==='Yearly'?'selected':'')+'>Yearly</option></select></td><td>'+u.expiry+'</td><td>'+u.status+'</td><td><button onclick="toggleBlock('+i+')">'+(u.status==='Active'?'Block':'Activate')+'</button> <button onclick="delUser('+i+')">Delete</button></td>';tb.appendChild(tr);});document.getElementById('aTotal').innerText=users.length;document.getElementById('aActive').innerText=users.filter(u=>u.status==='Active').length;document.getElementById('aBlocked').innerText=users.filter(u=>u.status==='Blocked').length;document.getElementById('aTrial').innerText=users.filter(u=>u.plan==='Trial').length;let kl=document.getElementById('keyList');kl.innerHTML=keys.map(k=>'<div class="badge">'+k.code+' - '+k.plan+' - '+(k.used?'Used by '+k.used:'Unused')+'</div>').join(' ')||'Abhi koi key nahi hai';}
+function toggleBlock(i){users[i].status=users[i].status==='Active'?'Blocked':'Active';saveUsers();renderAdmin();}
+function delUser(i){if(!confirm('Delete karna hai?')) return;users.splice(i,1);saveUsers();renderAdmin();}
+function changePlan(i,v){users[i].plan=v;users[i].expiry=expiryFor(v);saveUsers();renderAdmin();}
+function adminAdd(){let n=document.getElementById('admName').value,e=document.getElementById('admEmail').value.trim().toLowerCase(),ph=document.getElementById('admPhone').value,p=document.getElementById('admPass').value,pl=document.getElementById('admPlan').value;if(!n||!e||!p){alert('Name Email Password bharo');return;}users.push({name:n,email:e,phone:ph,password:p,plan:pl,signup:new Date().toISOString().slice(0,10),expiry:expiryFor(pl),status:'Active'});saveUsers();renderAdmin();alert('User add ho gaya');}
+function genKey(){let code='GST-'+Math.random().toString(36).slice(2,6).toUpperCase()+'-'+Math.random().toString(36).slice(2,6).toUpperCase();keys.push({code,plan:document.getElementById('keyPlan').value,used:''});saveKeys();renderAdmin();}
+function normInv(s){if(!s) return '';let x=String(s).toUpperCase().trim();x=x.replace(/^(INV|BILL|INVOICE)[\/\-_\s]*/,'');x=x.replace(/[\/\-_\s]/g,'');x=x.replace(/^0+/,'');return x;}
+function normGst(s){return String(s||'').toUpperCase().trim();}
+function lev(a,b){if(a===b) return 0;let m=a.length,n=b.length;if(!m) return n;if(!n) return m;let d=[];for(let i=0;i<=m;i++) d[i]=[i];for(let j=0;j<=n;j++) d[0][j]=j;for(let i=1;i<=m;i++) for(let j=1;j<=n;j++) d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[m][n];}
+function num(v){let n=parseFloat(String(v||'').replace(/,/g,''));return isNaN(n)?0:n;}
+function getRow(r,map){let o={};for(let k in map){o[k]=r[map[k]];}return o;}
+function buildMap(el,headers,store){let html='';FIELDS.forEach(f=>{let guess='';headers.forEach(h=>{let hl=h.toLowerCase();if(f[0]==='gstin'&&hl.includes('gst')) guess=h;if(f[0]==='invoice'&&(hl.includes('invoice')||hl.includes('inv'))) guess=h;if(f[0]==='supplier'&&(hl.includes('supplier')||hl.includes('party')||hl.includes('name'))) guess=h;if(f[0]==='date'&&hl.includes('date')) guess=h;if(f[0]==='taxable'&&hl.includes('taxable')) guess=h;if(f[0]==='igst'&&hl.includes('igst')) guess=h;if(f[0]==='cgst'&&hl.includes('cgst')) guess=h;if(f[0]==='sgst'&&hl.includes('sgst')) guess=h;if(f[0]==='total'&&hl.includes('total')) guess=h;});html+='<label class="small">'+f[1]+'</label><select id="'+el+'_'+f[0]+'"><option value="">-- Select --</option>'+headers.map(h=>'<option '+(h===guess?'selected':'')+'>'+h+'</option>').join('')+'</select>';});document.getElementById(el).innerHTML=html;}
+function readMap(prefix){let m={};FIELDS.forEach(f=>{let e=document.getElementById(prefix+'_'+f[0]);if(e) m[f[0]]=e.value;});return m;}
+function parseCSV(text){let lines=text.split(/\r?\n/).filter(l=>l.trim());if(!lines.length) return [];let heads=lines[0].split(',').map(h=>h.trim());return lines.slice(1).map(l=>{let vals=l.split(',');let o={};heads.forEach((h,i)=>o[h]=vals[i]||'');return o;});}
+function handleFile(file,cb,is2b){let reader=new FileReader();reader.onload=function(e){try{let data=[];if(file.name.endsWith('.json')){data=JSON.parse(e.target.result);if(!Array.isArray(data)) data=data.data||data.rows||[];}else if(file.name.endsWith('.csv')){data=parseCSV(e.target.result);}else{let wb=XLSX.read(e.target.result,{type:'array'});let ws=wb.Sheets[wb.SheetNames[0]];data=XLSX.utils.sheet_to_json(ws);}cb(data);}catch(err){alert('File read error: '+err.message);}};if(file.name.endsWith('.csv')||file.name.endsWith('.json')) reader.readAsText(file);else reader.readAsArrayBuffer(file);}
+document.getElementById('file2b').addEventListener('change',function(e){let f=e.target.files[0];if(!f) return;handleFile(f,(d)=>{data2b=d;document.getElementById('info2b').innerText=d.length+' rows loaded';if(d.length) buildMap('map2b',Object.keys(d[0]),'2b');});});
+document.getElementById('fileBooks').addEventListener('change',function(e){let f=e.target.files[0];if(!f) return;handleFile(f,(d)=>{dataBooks=d;document.getElementById('infoBooks').innerText=d.length+' rows loaded';if(d.length) buildMap('mapBooks',Object.keys(d[0]),'books');});});
+function loadDemo(){let sups=[['Sharma Traders','24ABCDE1234F1Z5'],['Patel Enterprises','24ABCDE5678G1Z2'],['Gupta Store','24ABCDE9012H1Z3'],['Mehta Suppliers','24ABCDE3456J1Z4']];data2b=[];dataBooks=[];for(let i=0;i<22;i++){let s=sups[i%4];let inv='INV/2025/'+String(100+i);let tax=10000+i*1370;let igst=Math.round(tax*0.18);data2b.push({'Supplier':s[0],'GSTIN':s[1],'Invoice No':inv,'Date':'2025-10-'+String((i%28)+1).padStart(2,'0'),'Taxable':tax,'IGST':igst,'CGST':0,'SGST':0,'Total':tax+igst});let bTax=i===5?tax+500:tax;let bInv=i===8?'INV-999':inv;let bTax2=i===15?tax:tax;dataBooks.push({'Supplier':s[0],'GSTIN':s[1],'Invoice No':bInv,'Date':'2025-10-'+String((i%28)+1).padStart(2,'0'),'Taxable':bTax,'IGST':Math.round(bTax*0.18),'CGST':0,'SGST':0,'Total':bTax+Math.round(bTax*0.18)});}dataBooks.push({'Supplier':'New Supplier','GSTIN':'24ABCDE7777K1Z9','Invoice No':'INV/2025/999','Date':'2025-10-20','Taxable':25000,'IGST':4500,'CGST':0,'SGST':0,'Total':29500});data2b.push({'Supplier':'Old Supplier','GSTIN':'24ABCDE8888L1Z1','Invoice No':'INV/2025/888','Date':'2025-10-21','Taxable':18000,'IGST':3240,'CGST':0,'SGST':0,'Total':21240});document.getElementById('info2b').innerText=data2b.length+' demo rows';document.getElementById('infoBooks').innerText=dataBooks.length+' demo rows';buildMap('map2b',Object.keys(data2b[0]));buildMap('mapBooks',Object.keys(dataBooks[0]));alert('Demo data load ho gaya, ab Run Reconciliation dabao');}
+function clearData(){data2b=[];dataBooks=[];allRows=[];document.getElementById('resultBox').classList.add('hidden');document.getElementById('info2b').innerText='No file yet';document.getElementById('infoBooks').innerText='No file yet';}
+function runRecon(){if(!data2b.length||!dataBooks.length){alert('Dono files / demo data chahiye');return;}map2b=readMap('map2b');mapBooks=readMap('mapBooks');if(!map2b.gstin||!map2b.invoice||!mapBooks.gstin||!mapBooks.invoice){alert('GSTIN aur Invoice No mapping select karo');return;}let booksUsed=new Array(dataBooks.length).fill(false);allRows=[];suppliersSet=new Set();
+data2b.forEach(r2=>{let a=getRow(r2,map2b);let g2=normGst(a.gstin),inv2=normInv(a.invoice),tot2=num(a.total)||num(a.taxable)+num(a.igst)+num(a.cgst)+num(a.sgst);let found=-1,matchType='',bucket='In 2B not in Books';for(let j=0;j<dataBooks.length;j++){if(booksUsed[j]) continue;let b=getRow(dataBooks[j],mapBooks);let g1=normGst(b.gstin),inv1=normInv(b.invoice),tot1=num(b.total)||num(b.taxable)+num(b.igst)+num(b.cgst)+num(b.sgst);if(g2===g1&&inv2===inv1&&Math.abs(tot2-tot1)<=1){found=j;matchType='Exact';bucket='Matched';break;}}if(found===-1){for(let j=0;j<dataBooks.length;j++){if(booksUsed[j]) continue;let b=getRow(dataBooks[j],mapBooks);let g1=normGst(b.gstin),inv1=normInv(b.invoice),tot1=num(b.total)||num(b.taxable)+num(b.igst)+num(b.cgst)+num(b.sgst);if(g2===g1&&inv2===inv1){found=j;matchType='Invoice Same, Amount Diff';bucket='Mismatch';break;}}}
+if(found===-1){for(let j=0;j<dataBooks.length;j++){if(booksUsed[j]) continue;let b=getRow(dataBooks[j],mapBooks);let g1=normGst(b.gstin),inv1=normInv(b.invoice);if(g2.slice(2,12)===g1.slice(2,12)&&inv2===inv1){found=j;matchType='PAN Level';bucket='Matched';break;}}}
+if(found===-1){for(let j=0;j<dataBooks.length;j++){if(booksUsed[j]) continue;let b=getRow(dataBooks[j],mapBooks);let g1=normGst(b.gstin),inv1=normInv(b.invoice),tot1=num(b.total)||num(b.taxable)+num(b.igst)+num(b.cgst)+num(b.sgst);if(g2===g1&&Math.abs(tot2-tot1)<=1&&lev(inv2,inv1)<=2){found=j;matchType='Fuzzy';bucket='Matched';break;}}}
+let bRow=found>=0?getRow(dataBooks[found],mapBooks):null;if(found>=0) booksUsed[found]=true;let tax2=num(a.igst)+num(a.cgst)+num(a.sgst);let tax1=bRow?num(bRow.igst)+num(bRow.cgst)+num(bRow.sgst):0;let diff=tax2-tax1;let ims='Pending';if(bucket==='Matched') ims='Accept';else if(Math.abs(diff)>5000) ims='Reject';else ims='Pending';allRows.push({supplier:a.supplier||bRow?.supplier||'',gstin:g2,inv2:a.invoice,invBooks:bRow?bRow.invoice:'',tax2,tax1,diff,bucket,matchType:matchType||'-',ims,taxable2:num(a.taxable),taxable1:bRow?num(bRow.taxable):0,igst2:num(a.igst),cgst2:num(a.cgst),sgst2:num(a.sgst),igst1:bRow?num(bRow.igst):0,cgst1:bRow?num(bRow.cgst):0,sgst1:bRow?num(bRow.sgst):0});suppliersSet.add(a.supplier||'');});
+dataBooks.forEach((r,j)=>{if(booksUsed[j]) return;let b=getRow(r,mapBooks);let tax1=num(b.igst)+num(b.cgst)+num(b.sgst);allRows.push({supplier:b.supplier||'',gstin:normGst(b.gstin),inv2:'',invBooks:b.invoice,tax2:0,tax1,diff:-tax1,bucket:'In Books not in 2B',matchType:'-',ims:'Pending',taxable2:0,taxable1:num(b.taxable),igst2:0,cgst2:0,sgst2:0,igst1:num(b.igst),cgst1:num(b.cgst),sgst1:num(b.sgst)});suppliersSet.add(b.supplier||'');});
+document.getElementById('resultBox').classList.remove('hidden');document.getElementById('cMatched').innerText=allRows.filter(r=>r.bucket==='Matched').length;document.getElementById('cMismatch').innerText=allRows.filter(r=>r.bucket==='Mismatch').length;document.getElementById('cOnly2b').innerText=allRows.filter(r=>r.bucket==='In 2B not in Books').length;document.getElementById('cOnlyBooks').innerText=allRows.filter(r=>r.bucket==='In Books not in 2B').length;
+let sum=(arr,f)=>arr.reduce((s,x)=>s+f(x),0);let tb=document.getElementById('itcBody');tb.innerHTML='<tr><td><b>As per 2B</b></td><td>'+sum(data2b,r=>num(getRow(r,map2b).taxable))+'</td><td>'+sum(data2b,r=>num(getRow(r,map2b).igst))+'</td><td>'+sum(data2b,r=>num(getRow(r,map2b).cgst))+'</td><td>'+sum(data2b,r=>num(getRow(r,map2b).sgst))+'</td><td>'+sum(data2b,r=>num(getRow(r,map2b).igst)+num(getRow(r,map2b).cgst)+num(getRow(r,map2b).sgst))+'</td></tr><tr><td><b>As per Books</b></td><td>'+sum(dataBooks,r=>num(getRow(r,mapBooks).taxable))+'</td><td>'+sum(dataBooks,r=>num(getRow(r,mapBooks).igst))+'</td><td>'+sum(dataBooks,r=>num(getRow(r,mapBooks).cgst))+'</td><td>'+sum(dataBooks,r=>num(getRow(r,mapBooks).sgst))+'</td><td>'+sum(dataBooks,r=>num(getRow(r,mapBooks).igst)+num(getRow(r,mapBooks).cgst)+num(getRow(r,mapBooks).sgst))+'</td></tr>';
+let sel=document.getElementById('supplierSel');sel.innerHTML='<option value="All">All Suppliers</option>'+[...suppliersSet].map(s=>'<option>'+s+'</option>').join('');renderTable();renderSupplier();
+}
+function renderTable(){let q=document.getElementById('searchBox').value.toLowerCase();let bk=document.getElementById('bucketSel').value;let sup=document.getElementById('supplierSel').value;let tb=document.getElementById('resultBody');tb.innerHTML='';allRows.filter(r=>(bk==='All'||r.bucket===bk)&&(sup==='All'||r.supplier===sup)&&((r.supplier+' '+r.gstin+' '+r.inv2+' '+r.invBooks).toLowerCase().includes(q))).forEach(r=>{let pill=r.ims==='Accept'?'green':r.ims==='Reject'?'red':'orange';let tr=document.createElement('tr');tr.innerHTML='<td>'+r.supplier+'</td><td>'+r.gstin+'</td><td>'+r.inv2+'</td><td>'+r.invBooks+'</td><td>'+r.tax2+'</td><td>'+r.tax1+'</td><td>'+r.diff+'</td><td>'+r.bucket+'</td><td>'+r.matchType+'</td><td><span class="pill '+pill+'">'+r.ims+'</span></td>';tb.appendChild(tr);});}
+function renderSupplier(){let m={};allRows.forEach(r=>{if(!m[r.supplier]) m[r.supplier]={gstin:r.gstin,count:0,t2:0,t1:0,mat:0,mis:0};m[r.supplier].count++;m[r.supplier].t2+=r.tax2;m[r.supplier].t1+=r.tax1;if(r.bucket==='Matched') m[r.supplier].mat++;if(r.bucket==='Mismatch') m[r.supplier].mis++;});let tb=document.getElementById('supplierBody');tb.innerHTML='';Object.keys(m).forEach(k=>{let v=m[k];tb.innerHTML+='<tr><td>'+k+'</td><td>'+v.gstin+'</td><td>'+v.count+'</td><td>'+v.t2+'</td><td>'+v.t1+'</td><td>'+v.mat+'</td><td>'+v.mis+'</td></tr>';});}
+function exportCSV(bucket){let rows=bucket==='All'?allRows:allRows.filter(r=>r.bucket===bucket);if(!rows.length){alert('No data');return;}let csv='Supplier,GSTIN,Invoice 2B,Invoice Books,Tax 2B,Tax Books,Diff,Bucket,Match Type,IMS Suggestion\n'+rows.map(r=>[r.supplier,r.gstin,r.inv2,r.invBooks,r.tax2,r.tax1,r.diff,r.bucket,r.matchType,r.ims].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='GST-Reconcile-'+bucket+'.csv';a.click();}
+
+function calcGST(){let amt=parseFloat(document.getElementById('gstAmt').value||0),rate=parseFloat(document.getElementById('gstRate').value||0),type=document.getElementById('gstType').value,supply=document.getElementById('gstSupply').value;let taxable,tax;if(type==='exclusive'){taxable=amt;tax=amt*rate/100;}else{taxable=amt/(1+rate/100);tax=amt-taxable;}let cgst=0,sgst=0,igst=0;if(supply==='intra'){cgst=tax/2;sgst=tax/2;}else igst=tax;document.getElementById('gstCalcOut').innerHTML='<b>Taxable:</b> Rs '+taxable.toFixed(2)+'<br><b>GST:</b> Rs '+tax.toFixed(2)+' | CGST Rs '+cgst.toFixed(2)+' | SGST Rs '+sgst.toFixed(2)+' | IGST Rs '+igst.toFixed(2)+'<br><b>Total:</b> Rs '+(taxable+tax).toFixed(2);}
+function calc3B(){let outTax=parseFloat(document.getElementById('bOutTaxAmt').value||0),itcI=parseFloat(document.getElementById('bItcIgst').value||0),itcC=parseFloat(document.getElementById('bItcCgst').value||0);let itc=itcI+itcC;let net=Math.max(0,outTax-itc);document.getElementById('b3bOut').innerHTML='<b>Total Output GST:</b> Rs '+outTax+'<br><b>Total ITC:</b> Rs '+itc+'<br><b>Net Cash Payable:</b> Rs '+net+'<br><span class="small">IGST ITC pehle IGST se, bacha hua CGST/SGST se adjust hota hai - ye rough calc hai, final 3B portal ke rule se karo.</span>';}
+let hsnData=[['Wheat / Rice','1001','0% / 5%'],['Coffee','0901','5%'],['Tea','0902','5%'],['Milk','0401','0%'],['Mobile Phone','8517','18%'],['Laptop','8471','18%'],['Clothes upto Rs 1000','6101','5%'],['Clothes above Rs 1000','6101','12%'],['Car','8703','28% + Cess'],['Two Wheeler','8711','18%'],['Furniture','9403','18%'],['Cosmetics','3304','18%'],['Gold Jewellery','7113','3%'],['Books','4901','0%'],['Software Service','9983','18%'],['Restaurant Service','9963','5%'],['Transport Service','9965','5% / 12%'],['E-commerce Commission Service','9985','18%']];
+function renderHSN(){let tb=document.getElementById('hsnBody');if(!tb) return;tb.innerHTML=hsnData.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>').join('');}
+function filterHSN(){let q=document.getElementById('hsnSearch').value.toLowerCase();let tb=document.getElementById('hsnBody');tb.innerHTML=hsnData.filter(r=>(r[0]+r[1]+r[2]).toLowerCase().includes(q)).map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>').join('');}
+function setComm(){let p=document.getElementById('ecPlatform').value;let v=p==='Amazon'?12:p==='Flipkart'?14:p==='Meesho'?0:2;document.getElementById('ecComm').value=v;}
+function calcEcom(){let price=parseFloat(document.getElementById('ecPrice').value||0),commP=parseFloat(document.getElementById('ecComm').value||0),ship=parseFloat(document.getElementById('ecShip').value||0),cost=parseFloat(document.getElementById('ecCost').value||0);let comm=price*commP/100;let gstOnComm=comm*0.18;let tcs=price*0.01;let receivable=price-comm-gstOnComm-tcs-ship;let profit=receivable-cost;document.getElementById('ecOut').innerHTML='<b>Commission:</b> Rs '+comm.toFixed(2)+'<br><b>GST on Commission (18%):</b> Rs '+gstOnComm.toFixed(2)+'<br><b>TCS 1%:</b> Rs '+tcs.toFixed(2)+' (ITC me milega)<br><b>Shipping:</b> Rs '+ship+'<br><b>Net Receivable:</b> Rs '+receivable.toFixed(2)+'<br><b>Profit (Cost Rs '+cost+' minus):</b> Rs '+profit.toFixed(2);}
+
+async function fetchNews(){let box=document.getElementById('newsList');if(!box) return;box.innerHTML='<div class="card">Live news load ho rahi hai... 5 sec me na aaye to saved news dikhegi.</div>';let timeEl=document.getElementById('newsTime');if(timeEl) timeEl.innerText='Updated: '+new Date().toLocaleString('en-IN');let fallback=[['GST 2.0: 5% aur 18% wale naye slab se kya sasta, kya mehenga?','GST Council Update','Nov 2026'],['E-commerce sellers ke liye TCS aur ITC ka naya rule - 2B me kaise check kare?','CBIC / GST Portal','Nov 2026'],['IMS me Accept / Pending / Reject karna bhoole to ITC atak sakta hai','GST Practitioner Alert','Nov 2026'],['Quick Commerce aur D2C brands ke liye GST compliance aasan hone wala hai','E-commerce Future','Nov 2026'],['GSTR-3B filing me galti? Ab auto-IMS matching se mismatch pehle hi pakda jayega','GST News','Nov 2026'],['Amazon / Flipkart sellers: Festive sale ke baad TCS statement GSTR-2B me jarur milao','E-commerce GST','Nov 2026']];function showFallback(note){box.innerHTML=fallback.map(f=>'<div class="card" style="margin:8px 0"><b>'+f[0]+'</b><br><span class="small">'+f[1]+' | '+f[2]+'</span><br><span class="small">'+note+'</span></div>').join('');}
+let rssUrl='https://news.google.com/rss/search?q=GST%20India%20tax&hl=en-IN&gl=IN&ceid=IN:en';let proxies=['https://api.allorigins.win/raw?url='+encodeURIComponent(rssUrl),'https://corsproxy.io/?url='+encodeURIComponent(rssUrl)];
+for(let proxy of proxies){try{let ctrl=new AbortController();let tm=setTimeout(()=>ctrl.abort(),6000);let res=await fetch(proxy,{signal:ctrl.signal});clearTimeout(tm);if(!res.ok) continue;let txt=await res.text();if(!txt.includes('<item')) continue;let doc=new DOMParser().parseFromString(txt,'text/xml');let items=[...doc.querySelectorAll('item')].slice(0,8);if(!items.length) continue;box.innerHTML=items.map(it=>{let title=it.querySelector('title')?.textContent||'';let link=it.querySelector('link')?.textContent||'#';let d=it.querySelector('pubDate')?.textContent||'';let src=it.querySelector('source')?.textContent||'Google News';return '<div class="card" style="margin:8px 0"><b>'+title+'</b><br><span class="small">'+src+' | '+d+'</span><br><a href="'+link+'" target="_blank">Read Full News - Click Here</a></div>';}).join('');return;}catch(e){console.log('news proxy fail',e);continue;}}
+showFallback('Live fetch fail hua (internet / RSS block), isliye saved latest summary dikh raha hai. Refresh dabao.');
+}
+renderHSN();
+
+
+function setQuick(){let p=document.getElementById('qcPlatform').value;let map={'Blinkit':18,'Zepto':20,'Instamart':16,'D2C':3,'Marketplace':13};document.getElementById('qcComm').value=map[p]||15;let ship={'Blinkit':25,'Zepto':22,'Instamart':28,'D2C':45,'Marketplace':40};document.getElementById('qcShip').value=ship[p]||25;}
+function calcQuickOne(price,cost,commP,ship){let comm=price*commP/100;let gstComm=comm*0.18;let tcs=price*0.01;let recv=price-comm-gstComm-tcs-ship;let profit=recv-cost;return {comm,gstComm,tcs,recv,profit};}
+function calcQuick(){let price=parseFloat(document.getElementById('qcPrice').value||0),cost=parseFloat(document.getElementById('qcCost').value||0),commP=parseFloat(document.getElementById('qcComm').value||0),ship=parseFloat(document.getElementById('qcShip').value||0),plat=document.getElementById('qcPlatform').value;let r=calcQuickOne(price,cost,commP,ship);document.getElementById('qcOut').innerHTML='<b>'+plat+'</b><br><b>Commission:</b> Rs '+r.comm.toFixed(2)+'<br><b>GST on Commission 18%:</b> Rs '+r.gstComm.toFixed(2)+'<br><b>TCS 1%:</b> Rs '+r.tcs.toFixed(2)+'<br><b>Delivery:</b> Rs '+ship+'<br><b>Net Receivable:</b> Rs '+r.recv.toFixed(2)+'<br><b>Profit:</b> Rs '+r.profit.toFixed(2)+' | <b>Margin:</b> '+(price?((r.profit/price)*100).toFixed(1):0)+'%';}
+function compareQuick(){let price=parseFloat(document.getElementById('qcPrice').value||299),cost=parseFloat(document.getElementById('qcCost').value||180);let plats=[['Blinkit',18,25,'8-15 min'],['Zepto',20,22,'8-12 min'],['Instamart',16,28,'12-20 min'],['D2C Website',3,45,'1-3 din'],['Marketplace',13,40,'2-4 din'],['Live Selling',4,20,'Same day']];let html='<div class="wrap"><table><thead><tr><th>Platform</th><th>Profit</th><th>Receivable</th><th>Delivery</th></tr></thead><tbody>';let best=null,bestP=-999;plats.forEach(pl=>{let r=calcQuickOne(price,cost,pl[1],pl[2]);if(r.profit>bestP){bestP=r.profit;best=pl[0];}html+='<tr><td>'+pl[0]+'</td><td>Rs '+r.profit.toFixed(0)+'</td><td>Rs '+r.recv.toFixed(0)+'</td><td>'+pl[3]+'</td></tr>';});html+='</tbody></table></div><p style="margin-top:8px"><b>Is price pe sabse zyada profit:</b> '+best+' - Rs '+bestP.toFixed(0)+'</p>';document.getElementById('qcCompare').innerHTML=html;}
+
+if(session){let u=users.find(x=>x.email===session);if(u) afterLogin();}
+</script>
+</body>
+</html>
